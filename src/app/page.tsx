@@ -1,7 +1,4 @@
 import { Analytics } from '@vercel/analytics/react';
-import { parseISO } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
-import { TimeDisplay } from '@/components/TimeDisplay';
 
 function getAvailabilityColorClass(available: number, total: number): string {
   if (available === 0) {
@@ -27,7 +24,7 @@ interface Slot {
 
 interface Availability {
   date: string;
-  times: { text: string; colorClass: string; utcTime: string }[];
+  times: { text: string; colorClass: string }[];
   totalSpots: number;
 }
 
@@ -36,6 +33,7 @@ async function getAvailabilities(): Promise<Availability[]> {
 
   const promises = dates.map(async date => {
     try {
+      // Get next day for the date range
       const nextDay = new Date(date);
       nextDay.setDate(nextDay.getDate() + 1);
       const nextDate = nextDay.toISOString().split('T')[0];
@@ -57,17 +55,13 @@ async function getAvailabilities(): Promise<Availability[]> {
         totalSpots: slots[0]?.numSpots || 0,
         times: slots
           .map(slot => {
-            const date = parseISO(slot.date);
-            const londonTime = formatInTimeZone(
-              date,
-              'Europe/London',
-              'h:mm aa'
-            );
-            const utcTime = formatInTimeZone(date, 'UTC', 'HH:mm');
-
+            const date = new Date(slot.date);
             return {
-              londonTime: londonTime.toLowerCase(),
-              utcTime,
+              time: date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'America/New_York',
+              }),
               availableSpots: slot.numAvailableSpots,
               totalSpots: slot.numSpots,
               colorClass: getAvailabilityColorClass(
@@ -76,22 +70,13 @@ async function getAvailabilities(): Promise<Availability[]> {
               ),
             };
           })
-          .map(
-            ({
-              londonTime,
-              utcTime,
-              availableSpots,
-              totalSpots,
-              colorClass,
-            }) => ({
-              text:
-                availableSpots === 0
-                  ? `${londonTime} (No spots available)`
-                  : `${londonTime} (${availableSpots}/${totalSpots} spots available)`,
-              utcTime,
-              colorClass,
-            })
-          ),
+          .map(({ time, availableSpots, totalSpots, colorClass }) => ({
+            text:
+              availableSpots === 0
+                ? `${time} (No spots available)`
+                : `${time} (${availableSpots}/${totalSpots} spots available)`,
+            colorClass,
+          })),
       };
     } catch (error) {
       console.error(`Error fetching data for ${date}:`, error);
@@ -125,11 +110,11 @@ export default async function Home() {
             className='border rounded-lg p-4 shadow-sm'
           >
             <h2 className='text-xl font-semibold mb-3'>
-              {formatInTimeZone(
-                parseISO(availability.date),
-                'Europe/London',
-                'EEEE, MMMM d'
-              )}
+              {new Date(availability.date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              })}
             </h2>
             {availability.times.length === 0 ? (
               <p className='text-red-500'>No available times</p>
@@ -137,12 +122,7 @@ export default async function Home() {
               <ul className='space-y-2'>
                 {availability.times.map((time, index) => (
                   <li key={index} className={`p-2 rounded ${time.colorClass}`}>
-                    <TimeDisplay
-                      utcTime={time.utcTime}
-                      date={availability.date}
-                    >
-                      {time.text}
-                    </TimeDisplay>
+                    {time.text}
                   </li>
                 ))}
               </ul>
