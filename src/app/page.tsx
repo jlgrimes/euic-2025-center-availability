@@ -1,101 +1,130 @@
-import Image from "next/image";
+function getAvailabilityColorClass(available: number, total: number): string {
+  if (available === 0) {
+    return 'bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200';
+  }
 
-export default function Home() {
+  const percentage = (available / total) * 100;
+
+  if (percentage <= 25) {
+    return 'bg-orange-100 dark:bg-orange-900/30 text-orange-900 dark:text-orange-200';
+  } else if (percentage <= 75) {
+    return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-200';
+  } else {
+    return 'bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200';
+  }
+}
+
+interface Slot {
+  date: string;
+  numSpots: number;
+  numAvailableSpots: number;
+}
+
+interface Availability {
+  date: string;
+  times: { text: string; colorClass: string }[];
+  totalSpots: number;
+}
+
+async function getAvailabilities(): Promise<Availability[]> {
+  const dates = ['2025-02-20', '2025-02-21', '2025-02-22', '2025-02-23'];
+
+  const promises = dates.map(async date => {
+    try {
+      // Get next day for the date range
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDate = nextDay.toISOString().split('T')[0];
+
+      const response = await fetch(
+        `https://api.waitwhile.com/v2/public/visits/pokemoncenteratexcel/availability?fromDate=${date}T00%3A00&toDate=${nextDate}T00%3A00`,
+        { next: { revalidate: 300 } }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data for ${date}`);
+      }
+
+      const data = await response.json();
+      const slots: Slot[] = data || [];
+
+      return {
+        date,
+        totalSpots: slots[0]?.numSpots || 0,
+        times: slots
+          .filter(slot => slot.numAvailableSpots > 0)
+          .map(slot => {
+            const date = new Date(slot.date);
+            return {
+              time: date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'America/New_York',
+              }),
+              availableSpots: slot.numAvailableSpots,
+              totalSpots: slot.numSpots,
+              colorClass: getAvailabilityColorClass(
+                slot.numAvailableSpots,
+                slot.numSpots
+              ),
+            };
+          })
+          .map(({ time, availableSpots, totalSpots, colorClass }) => ({
+            text: `${time} (${availableSpots}/${totalSpots} spots available)`,
+            colorClass,
+          })),
+      };
+    } catch (error) {
+      console.error(`Error fetching data for ${date}:`, error);
+      return { date, times: [], totalSpots: 0 };
+    }
+  });
+
+  return Promise.all(promises);
+}
+
+export default async function Home() {
+  const availabilities = await getAvailabilities();
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className='min-h-screen p-8'>
+      <div className='max-w-3xl mx-auto mb-12 text-center'>
+        <h1 className='text-3xl font-bold mb-4'>Pokemon Center Availability</h1>
+        <p className='text-gray-600 dark:text-gray-400 mb-2'>
+          Check available appointment times for the Pokemon Center at Excel
+          London from February 20-23, 2025.
+        </p>
+        <p className='text-sm text-gray-500 dark:text-gray-500'>
+          Times are shown in local London time. Appointments are released daily.
+        </p>
+      </div>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
+        {availabilities.map(availability => (
+          <div
+            key={availability.date}
+            className='border rounded-lg p-4 shadow-sm'
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <h2 className='text-xl font-semibold mb-3'>
+              {new Date(availability.date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </h2>
+            {availability.times.length === 0 ? (
+              <p className='text-red-500'>No available times</p>
+            ) : (
+              <ul className='space-y-2'>
+                {availability.times.map((time, index) => (
+                  <li key={index} className={`p-2 rounded ${time.colorClass}`}>
+                    {time.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
