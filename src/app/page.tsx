@@ -1,3 +1,5 @@
+import { Analytics } from '@vercel/analytics/react';
+
 function getAvailabilityColorClass(available: number, total: number): string {
   if (available === 0) {
     return 'bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200';
@@ -88,6 +90,7 @@ export default async function Home() {
 
   return (
     <div className='min-h-screen p-8'>
+      <Analytics />
       <div className='max-w-3xl mx-auto mb-12 text-center'>
         <h1 className='text-3xl font-bold mb-4'>Pokemon Center Availability</h1>
         <p className='text-gray-600 dark:text-gray-400 mb-2'>
