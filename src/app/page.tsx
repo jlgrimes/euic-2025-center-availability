@@ -61,7 +61,7 @@ async function getAvailabilities(): Promise<Availability[]> {
               time: date.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
-                timeZone: 'America/New_York',
+                timeZone: 'Europe/London',
               }),
               availableSpots: slot.numAvailableSpots,
               totalSpots: slot.numSpots,
