@@ -115,7 +115,8 @@ export default async function Home() {
           London from February 20-23, 2025.
         </p>
         <p className='text-sm text-gray-500 dark:text-gray-500'>
-          Times are shown in local London time. Appointments are released daily.
+          Times may be messed up by some offset. This website is not officially
+          endorsed or made by the Pokemon Company International.
         </p>
       </div>
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
